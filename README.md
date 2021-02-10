@@ -9,34 +9,34 @@ Customized Congestion Control for OPENWRT and Linux distributions + Network Twea
 Download OPENWRT Sdk according to your router architecture
 
 # cd sdk
-<pre>
+
 Upload "hybla_max" folder to package folder
  
- make menuconfig
+<pre>make menuconfig</pre>
+ 
 Select Kernel modules --> Network Support ---> kmod-hybla_max
   
-  make package/hybla_max/compile V=99
+<pre>make package/hybla_max/compile V=99</pre>
 
 Navigate to bin directory, find and install kmod-hybla_max.ipk
  
- insmod tcp_hybla_max
+<pre>insmod tcp_hybla_max</pre>
   
-  echo "tcp_hybla_max" > /etc/modules.d/hybla_max
+<pre>echo "tcp_hybla_max" > /etc/modules.d/hybla_max</pre>
   
-  sysctl -w net.ipv4.tcp_congestion_control=hybla_max
-</pre>
+<pre>sysctl -w net.ipv4.tcp_congestion_control=hybla_max</pre>
 
 # Linux
 
 Download "tcp_hybla_max/module" folder
 
-  cd tcp_hybla_max/module/
+<pre>cd tcp_hybla_max/module/</pre>
   
-  make
+<pre>make</pre>
   
-  insmod tcp_hybla_max.ko
+<pre>insmod tcp_hybla_max.ko</pre>
   
-  sysctl -w net.ipv4.tcp_congestion_control=hybla_max
+<pre>sysctl -w net.ipv4.tcp_congestion_control=hybla_max</pre>
 
 You can load module on startup in rc.local file
 
