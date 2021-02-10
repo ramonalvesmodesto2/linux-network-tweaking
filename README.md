@@ -8,7 +8,7 @@
 
 # OPENWRT
 
-<b> Download OPENWRT Sdk according to your router architecture</b>
+<b> Download OPENWRT SDK according to your router architecture</b>
 
 <pre>cd sdk</pre>
 
