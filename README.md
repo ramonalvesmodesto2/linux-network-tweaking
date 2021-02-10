@@ -1,8 +1,6 @@
 # linux-network-tweaking
 
-<b>Customized HYBLA Congestion Control for OPENWRT and Linux distributions + Network Tweaking by</b>
-
-<a href="http://ipv4.throttlefix.com">Throttlefix.com</a>
+<b>Customized HYBLA Congestion Control for OPENWRT and Linux distributions + Network Tweaking by</b><a href="http://ipv4.throttlefix.com">Throttlefix.com</a>
 
 <a href="mailto:michael.gehaa@gmail.com">Contact email</a>
 
