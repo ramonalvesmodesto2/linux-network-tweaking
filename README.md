@@ -24,7 +24,7 @@ Select Kernel modules --> Network Support ---> kmod-hybla_max
 
 Navigate to bin directory, find and install kmod-hybla_max.ipk
  
-<pre>insmod tcp_hybla_max</pre>
+<pre>insmod tcp_hybla_max.ko</pre>
   
 <pre>echo "tcp_hybla_max" > /etc/modules.d/hybla_max</pre>
   
