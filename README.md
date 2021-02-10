@@ -9,6 +9,7 @@ Customized Congestion Control for OPENWRT and Linux distributions + Network Twea
 Download OPENWRT Sdk according to your router architecture
 
 # cd sdk
+<pre>
 Upload "hybla_max" folder to package folder
  
  make menuconfig
@@ -23,7 +24,7 @@ Navigate to bin directory, find and install kmod-hybla_max.ipk
   echo "tcp_hybla_max" > /etc/modules.d/hybla_max
   
   sysctl -w net.ipv4.tcp_congestion_control=hybla_max
-
+</pre>
 
 # Linux
 
