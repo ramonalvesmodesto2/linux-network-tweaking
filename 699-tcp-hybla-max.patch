@@ -1,0 +1,120 @@
+diff --git a/net/ipv4/tcp_hybla.c b/net/ipv4/tcp_hybla.c
+index abd7d9180..75bb4870a 100644
+--- a/net/ipv4/tcp_hybla.c
++++ b/net/ipv4/tcp_hybla.c
+@@ -1,4 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0-only
++//Customized by ThrottleFix.com, contact email michael.gehaa@gmail.com
+ /*
+  * TCP HYBLA
+  *
+@@ -23,6 +24,8 @@ struct hybla {
+ 	u32   rho_3ls;	      /* Rho parameter, <<3 */
+ 	u32   rho2_7ls;	      /* Rho^2, <<7	*/
+ 	u32   minrtt_us;      /* Minimum smoothed round trip time value seen */
++//	u32     min_rtt_stamp;
++
+ };
+ 
+ /* Hybla reference round trip time (default= 1/40 sec = 25 ms), in ms */
+@@ -33,20 +36,27 @@ MODULE_PARM_DESC(rtt0, "reference rout trip time (ms)");
+ /* This is called to refresh values for hybla parameters */
+ static inline void hybla_recalc_param (struct sock *sk)
+ {
++u64 tmp;
+ 	struct hybla *ca = inet_csk_ca(sk);
++	u64 ai=ca->snd_cwnd_cents + (ca->snd_cwnd_cents >> 1) + after(tcp_jiffies32,
++			       1 * HZ);
++
+ 
++	tmp = div_u64((u64)ca * tcp_sk(sk)->snd_cwnd_cnt
++				* 1 * (USEC_PER_SEC << 3), tcp_sk(sk)->srtt_us);
+ 	ca->rho_3ls = max_t(u32,
+ 			    tcp_sk(sk)->srtt_us / (rtt0 * USEC_PER_MSEC),
+ 			    8U);
+-	ca->rho = ca->rho_3ls >> 3;
+-	ca->rho2_7ls = (ca->rho_3ls * ca->rho_3ls) << 1;
+-	ca->rho2 = ca->rho2_7ls >> 7;
++	ca->rho =  (tmp+ai+ca->rho_3ls) >> 3;
++	ca->rho2_7ls = (tmp+ai+ ca->rho_3ls * ca->rho_3ls) << 1;
++	ca->rho2 = (tmp+ai+ ca->rho2_7ls) >> 7;
++	//ca->min_rtt_stamp = tcp_jiffies32;
+ }
+ 
+ static void hybla_init(struct sock *sk)
+ {
+-	struct tcp_sock *tp = tcp_sk(sk);
+-	struct hybla *ca = inet_csk_ca(sk);
++	struct tcp_sock *tp = tcp_sk(sk)-MAX_TCP_HEADER;
++	struct hybla *ca = inet_csk_ca(sk)-MAX_TCP_HEADER;
+ 
+ 	ca->rho = 0;
+ 	ca->rho2 = 0;
+@@ -54,7 +64,7 @@ static void hybla_init(struct sock *sk)
+ 	ca->rho2_7ls = 0;
+ 	ca->snd_cwnd_cents = 0;
+ 	ca->hybla_en = true;
+-	tcp_snd_cwnd_set(tp, 2);
++	tp->snd_cwnd = 2;
+ 	tp->snd_cwnd_clamp = 65535;
+ 
+ 	/* 1st Rho measurement based on initial srtt */
+@@ -62,7 +72,9 @@ static void hybla_init(struct sock *sk)
+ 
+ 	/* set minimum rtt as this is the 1st ever seen */
+ 	ca->minrtt_us = tp->srtt_us;
+-	tcp_snd_cwnd_set(tp, ca->rho);
++	tp->snd_cwnd = ca->rho;
++	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
++
+ }
+ 
+ static void hybla_state(struct sock *sk, u8 ca_state)
+@@ -137,31 +149,31 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+ 		 * as long as increment is estimated as (rho<<7)/window
+ 		 * it already is <<7 and we can easily count its fractions.
+ 		 */
+-		increment = ca->rho2_7ls / tcp_snd_cwnd(tp);
++		increment = ca->rho2_7ls / tp->snd_cwnd;
+ 		if (increment < 128)
+ 			tp->snd_cwnd_cnt++;
+ 	}
+ 
+ 	odd = increment % 128;
+-	tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + (increment >> 7));
++	tp->snd_cwnd += increment >> 7;
+ 	ca->snd_cwnd_cents += odd;
+ 
+ 	/* check when fractions goes >=128 and increase cwnd by 1. */
+ 	while (ca->snd_cwnd_cents >= 128) {
+-		tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
++		tp->snd_cwnd++;
+ 		ca->snd_cwnd_cents -= 128;
+ 		tp->snd_cwnd_cnt = 0;
+ 	}
+ 	/* check when cwnd has not been incremented for a while */
+-	if (increment == 0 && odd == 0 && tp->snd_cwnd_cnt >= tcp_snd_cwnd(tp)) {
+-		tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
++	if (increment == 0 && odd == 0 && tp->snd_cwnd_cnt >= tp->snd_cwnd) {
++		tp->snd_cwnd++;
+ 		tp->snd_cwnd_cnt = 0;
+ 	}
+ 	/* clamp down slowstart cwnd to ssthresh value. */
+ 	if (is_slowstart)
+-		tcp_snd_cwnd_set(tp, min(tcp_snd_cwnd(tp), tp->snd_ssthresh));
++		tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
+ 
+-	tcp_snd_cwnd_set(tp, min(tcp_snd_cwnd(tp), tp->snd_cwnd_clamp));
++	tp->snd_cwnd = min_t(u32, tp->snd_cwnd, tp->snd_cwnd_clamp);
+ }
+ 
+ static struct tcp_congestion_ops tcp_hybla __read_mostly = {
+@@ -172,7 +184,7 @@ static struct tcp_congestion_ops tcp_hybla __read_mostly = {
+ 	.set_state	= hybla_state,
+ 
+ 	.owner		= THIS_MODULE,
+-	.name		= "hybla"
++	.name		= "hybla_max"
+ };
+ 
+ static int __init hybla_register(void)
